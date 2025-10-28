@@ -6,10 +6,6 @@ from utils import get_storage_class, get_api_class, get_router_class
 from llm.openai_local import LLMContextResolver
 from config import (
     ORDER_ID_RE,
-    REDIS_URL,
-    BEECEPTOR_BASE,
-    ENABLE_EMBEDDINGS,
-    ROUTER_MODE,
     RESOLVER_MIN_CONF,
     KNOWLEDGE_BASE_STORAGE_NAME,
     ORDER_API_CLIENT_NAME,
@@ -128,12 +124,12 @@ class OrchestratorAgent(Agent):
 
     def handle(self, request_id: str, session_id: str, message: str) -> ChatResponse:
         intent, confidence, meta = self.router.route(message)
-        self.log(msg=f'Routing message: "{message}" -> {intent}', request_id=request_id, session_id=session_id)
+        self.log(msg=f'Routing message: {message} -> {intent}', request_id=request_id, session_id=session_id)
 
         # Emit a Router tool call for observability
         self.tool_calls.append({
             "tool": "Router",
-            "input": {"mode": ROUTER_MODE, "text": message},
+            "input": {"mode": ROUTER_NAME, "text": message},
             "result": {"intent": intent, "confidence": round(float(confidence), 4), "meta": meta}
         })
 
@@ -168,7 +164,7 @@ class OrchestratorAgent(Agent):
         resp = agent.handle(request_id, session_id, message)
         # Append our router call to the child response
         resp.tool_calls = [ToolCall(**tc) for tc in (self.tool_calls + [c.model_dump() for c in resp.tool_calls])]
-        resp.handover = f"OrchestratorAgent({ROUTER_MODE}) → {agent.name}"
+        resp.handover = f"OrchestratorAgent({ROUTER_NAME}) → {agent.name}"
         return resp
 
 

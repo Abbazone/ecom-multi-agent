@@ -13,7 +13,7 @@ ORDER_ID_RE = re.compile(r"ORD-\d{4}")
 REDIS_URL = os.getenv("REDIS_URL")
 BEECEPTOR_BASE = os.getenv("BEECEPTOR_BASE_URL", "https://ecom-mock.free.beeceptor.com").rstrip("/")
 ENABLE_EMBEDDINGS = os.getenv("ENABLE_EMBEDDINGS", "false").lower() == "true"
-ROUTER_MODE = os.getenv("ROUTER_MODE", "naive").lower()
+# ROUTER_MODE = os.getenv("ROUTER_MODE", "naive").lower()
 RESOLVER_MIN_CONF = float(os.getenv("RESOLVER_MIN_CONF", 0.6))
 
 KNOWLEDGE_BASE_STORAGE_NAME = os.getenv('KNOWLEDGE_BASE_STORAGE_NAME', 'JsonKVKnowledgeBase')
