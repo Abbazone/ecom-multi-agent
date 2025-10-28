@@ -7,16 +7,17 @@ from dotenv import load_dotenv
 
 from routers.naive_router import NaiveRouter
 from routers import Intent, INTENT_LIST
-
-
-load_dotenv()
+from config import (
+    ROUTER_LLM_MODEL,
+    ROUTER_LLM_TEMPERATURE
+)
 
 
 class LLMRouter:
     def __init__(self):
         self.client = OpenAI()
-        self.model = os.getenv("ROUTER_LLM_MODEL", "gpt-4o-mini")
-        self.temperature = float(os.getenv("ROUTER_LLM_TEMPERATURE", "0.0"))
+        self.model = ROUTER_LLM_MODEL
+        self.temperature = ROUTER_LLM_TEMPERATURE
 
     def route(self, text: str) -> Tuple[Intent, float, Dict[str, Any]]:
         sys = (

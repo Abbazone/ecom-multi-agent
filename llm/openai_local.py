@@ -7,12 +7,13 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 from utils import completion_with_backoff, embedding_with_backoff
-
-OPENAI_EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
-OPENAI_TIMEOUT = float(os.getenv("OPENAI_TIMEOUT", "15"))
-OPENAI_MAX_RETRIES = int(os.getenv("OPENAI_MAX_RETRIES", "3"))
-OPENAI_BACKOFF = float(os.getenv("OPENAI_BACKOFF_FACTOR", "0.5"))
-RESOLVER_MODEL = os.getenv("RESOLVER_MODEL", "gpt-4o-mini")
+from config import (
+    OPENAI_EMBED_MODEL,
+    OPENAI_TIMEOUT,
+    OPENAI_MAX_RETRIES,
+    OPENAI_BACKOFF,
+    RESOLVER_MODEL
+)
 
 
 class OpenAIEmbedder:
@@ -68,7 +69,6 @@ Respond as JSON: {{
         resp = self.client(
             model=RESOLVER_MODEL,
             input=prompt,
-            # response_format={"type": "json_object"},
             temperature=0.2
         )
         try:

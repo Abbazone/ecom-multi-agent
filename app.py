@@ -8,15 +8,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST # Optional metrics
 
-load_dotenv()
-
+from config import LOG_LEVEL
 from schema import ChatResponse, ChatRequest
 from agent import OrchestratorAgent
 from memory.redis_impl import SessionStore
-
-
-
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 
 class JsonFormatter(logging.Formatter):

@@ -3,17 +3,13 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Dict
 import logging
-from dotenv import load_dotenv
 
 try:
     import redis
 except Exception:
     redis = None
 
-load_dotenv()
-
-REDIS_URL = os.getenv("REDIS_URL")
-UTC = timezone.utc
+from config import UTC, REDIS_URL
 
 
 class SessionStore:

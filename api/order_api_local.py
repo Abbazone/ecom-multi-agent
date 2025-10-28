@@ -3,8 +3,7 @@ from typing import Any, Dict, List, Optional, Tuple, Callable
 
 from models import OrderCancellationResult
 from base import OrderAPIBase
-
-UTC = timezone.utc
+from config import UTC
 
 
 class OrderAPILocalClient(OrderAPIBase):

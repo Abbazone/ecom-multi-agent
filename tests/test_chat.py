@@ -73,8 +73,7 @@ def test_cancellation_ineligible_policy(client):
     data = _post_chat(client, "s3", "Cancel ORD-1234")
     assert data["agent"] == "OrderCancellationAgent"
     assert "> 24" in data["response"] or "more than 24 hours" in data["response"].lower()
-    # Ensure not claiming success
-    assert "✅" not in data["response"]
+    assert "⛔️" in data["response"]
 
 
 def test_cancellation_unknown_order(client):
@@ -83,7 +82,7 @@ def test_cancellation_unknown_order(client):
     """
     data = _post_chat(client, "s4", "Cancel ORD-9999")
     assert data["agent"] == "OrderCancellationAgent"
-    assert "couldn’t cancel" in data["response"].lower(), data
+    assert "❗" in data["response"].lower(), data
 
 
 def test_invalid_order_id_prompts_for_format(client):

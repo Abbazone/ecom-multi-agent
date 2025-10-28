@@ -2,25 +2,19 @@ import os
 import json
 import numpy as np
 import chromadb
-import sys
 from chromadb.config import Settings
-from typing import Optional, List, Dict, Any
-from dotenv import load_dotenv
+from typing import List, Dict
 import logging
 
-load_dotenv()
-
-sys.path.append('../ZenDesk')
 from llm.openai_local import OpenAIEmbedder
-from base import (
-    BaseKVStorage,
+from base import BaseKVStorage
+from config import (
+    USE_OPENAI_EMBEDDINGS,
+    CHROMA_DIR,
+    CHROMA_COLLECTION,
+    KB_TOP_K,
+    KB_MIN_SCORE
 )
-
-USE_OPENAI_EMBEDDINGS = os.getenv("USE_OPENAI_EMBEDDINGS", "false").lower() == "true"
-CHROMA_DIR = os.getenv("CHROMA_DIR", ".chroma")
-CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "kb_faq")
-KB_TOP_K = int(os.getenv("KB_TOP_K", "3"))
-KB_MIN_SCORE = float(os.getenv("KB_MIN_SCORE", "0.35"))
 
 
 class ChromaKnowledgeBase(BaseKVStorage):

@@ -1,33 +1,28 @@
-import os
-import re
 import logging
 from dataclasses import asdict
-from dotenv import load_dotenv
-from datetime import datetime, timedelta, timezone
 
 from schema import *
 from utils import get_storage_class, get_api_class, get_router_class
 from llm.openai_local import LLMContextResolver
+from config import (
+    ORDER_ID_RE,
+    REDIS_URL,
+    BEECEPTOR_BASE,
+    ENABLE_EMBEDDINGS,
+    ROUTER_MODE,
+    RESOLVER_MIN_CONF,
+    KNOWLEDGE_BASE_STORAGE_NAME,
+    ORDER_API_CLIENT_NAME,
+    ROUTER_NAME
+)
 
-load_dotenv()
 
-ORDER_ID_RE = re.compile(r"ORD-\d{4}")
-REDIS_URL = os.getenv("REDIS_URL")
-BEECEPTOR_BASE = os.getenv("BEECEPTOR_BASE_URL", "https://ecom-mock.free.beeceptor.com").rstrip("/")
-ENABLE_EMBEDDINGS = os.getenv("ENABLE_EMBEDDINGS", "false").lower() == "true"
-UTC = timezone.utc
-ROUTER_MODE = os.getenv("ROUTER_MODE", "naive").lower()
-RESOLVER_MIN_CONF = float(os.getenv("RESOLVER_MIN_CONF", 0.6))
+# modules
+knowledge_base_cls = get_storage_class(KNOWLEDGE_BASE_STORAGE_NAME)
+order_api_cls = get_api_class(ORDER_API_CLIENT_NAME)
+router_cls = get_router_class(ROUTER_NAME)
 
-knowldge_base_storage_name = 'ChromaKnowledgeBase'
-order_api_client_name = 'OrderAPIBeeceptorClient' # 'OrderAPILocalClient'  # 'OrderAPIBeeceptorClient'
-router_name = 'LLMRouter'
-
-knowldge_base_cls = get_storage_class(knowldge_base_storage_name)
-order_api_cls = get_api_class(order_api_client_name)
-router_cls = get_router_class(router_name)
-
-kb = knowldge_base_cls()
+kb = knowledge_base_cls()
 order_api = order_api_cls()
 router = router_cls()
 
@@ -75,16 +70,9 @@ class OrderCancellationAgent(Agent):
             self.log(request_id, session_id, msg)
             return self.respond(f"I couldn't find {order_id}. Please double‑check the ID.", "OrchestratorAgent")
 
-        # perform cancellation without tool
-        placed_at = datetime.fromisoformat(order["placed_at"]).replace(tzinfo=timezone.utc)  # stored UTC
-        if datetime.now(UTC) - placed_at > timedelta(hours=24):
-            return self.respond(
-                f"⛔️{order_id} was placed more than 24 hours ago and isn’t eligible for cancellation. You can still initiate a return once delivered.",
-                "OrchestratorAgent",
-            )
-
         # Perform cancellation via tool
         result = order_api.cancel_order(order_id)
+        print('result', result)
         self.tool_calls.append({
             "tool": "OrderCancellationAPI",
             "input": {"orderId": order_id},
@@ -96,7 +84,7 @@ class OrderCancellationAgent(Agent):
         elif result.status == "ineligible":
             return self.respond(f"⛔️{order_id} is ineligible for cancellation (placed > 24h ago).", "OrchestratorAgent")
         else:
-            return self.respond(f"❗I couldn’t cancel {order_id}. Please contact support.", "OrchestratorAgent")
+            return self.respond(f"❗couldn’t cancel {order_id}. Please contact support.", "OrchestratorAgent")
 
 
 class OrderTrackingAgent(Agent):

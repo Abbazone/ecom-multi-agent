@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    container_name: ecommerce-assistant-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    # Persist Chroma DB locally
+    volumes:
+      - ./.chroma:/.chroma
+      # (Dev only) hot-reload: mount code & switch CMD to uvicorn --reload
+      # - ./:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce-assistant-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+# Notes:
+# - Put runtime secrets & config in .env (see earlier section).
+# - Ensure ./.chroma is gitignored if it contains local vectors.
+# - If you don’t use Redis, remove the service and the depends_on.

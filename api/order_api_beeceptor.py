@@ -2,19 +2,16 @@ import os
 import httpx
 import logging
 import time
-from typing import (
-    Any,
-    Dict,
-    Optional,
-)
+from typing import Any, Dict, Optional
 
 from base import OrderAPIBase
 from models import OrderCancellationResult
-
-BEECEPTOR_BASE = os.getenv("BEECEPTOR_BASE_URL", "https://ecom-mock.free.beeceptor.com").rstrip("/")
-HTTPX_TIMEOUT = float(os.getenv("HTTPX_TIMEOUT", "5.0"))
-HTTPX_MAX_RETRIES = int(os.getenv("HTTPX_MAX_RETRIES", "3"))
-HTTPX_BACKOFF_FACTOR = float(os.getenv("HTTPX_BACKOFF_FACTOR", "0.5"))
+from config import (
+    BEECEPTOR_BASE,
+    HTTPX_TIMEOUT,
+    HTTPX_MAX_RETRIES,
+    HTTPX_BACKOFF_FACTOR
+)
 
 
 class OrderAPIBeeceptorClient(OrderAPIBase):
@@ -59,12 +56,13 @@ class OrderAPIBeeceptorClient(OrderAPIBase):
         if not resp:
             return OrderCancellationResult.failure(status="error", reason=f"empty response")
         result = resp.json()
-        if resp.status_code == 404:
+        if resp.status_code == 404 or result['status'] != 'cancelled':
             return OrderCancellationResult.failure(status=result['status'], reason=result['reason'])
         return OrderCancellationResult.success(status=result['status'], refunded=result['refunded'])
 
     def track_order(self, order_id: str) -> Dict[str, Any]:
         resp = self._retry_request('GET', f"/orders/{order_id}/track")
+
         if not resp:
             return {"status": "error"}
         if resp.status_code == 404:
