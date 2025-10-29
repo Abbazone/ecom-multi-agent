@@ -18,7 +18,9 @@ from config import (
 
 
 class ChromaKnowledgeBase(BaseKVStorage):
-    def __init__(self, path: str = "kb/faq.json"):
+    def __init__(self, path: str = None):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(base_dir, "faq.json")
         with open(path, "r", encoding="utf-8") as f:
             self.qa: List[Dict[str, str]] = json.load(f)
         self.use_vectors = os.getenv("ENABLE_EMBEDDINGS", "false").lower() == "true"

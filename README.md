@@ -1,11 +1,14 @@
-# E‑commerce Assistant Challenge — Production‑Ready Multi‑Agent System
+# E‑commerce Multi‑Agent System
 
-This repo contains a **single‑endpoint**, **multi‑agent**, **observable** customer‑service system for an e‑commerce platform. It satisfies:
+This repo contains a **single‑endpoint**, **multi‑agent**, **observable** customer‑service system for an e‑commerce platform. 
+It satisfies:
 
-* **Order Cancellation Policy** (ID format `ORD-XXXX`, < 24h, mock API call)
-* **Order Tracking Policy** (ID format `ORD-XXXX`, status + ETA via mock API)
-* **Product Information Policy** (FAQ/RAG from a JSON knowledge base)
+* **Order Tracking Policy** (ID format `ORD-XXXX`, status + ETA via mock or Beeceptor API)
+* **Order Cancellation Policy** (ID format `ORD-XXXX`, < 24h, mock or Beeceptor API call)
+* **Product Information Policy** (FAQ/RAG from a JSON or Chroma vector knowledge bases)
+* **Intent-router**(`order_cancellation`, `order_tracking` and `product_qa`, via ML, LLM or naive)
 * **Multi‑turn state** with `session_id` memory (in‑memory or Redis)
+* **Context-resolver** resolve `order_id` from memory with LLM.
 * **Structured outputs** with `agent`, `tool_calls`, and `handover` trail
 * **Observability**: structured logging, request/agent spans, and Prometheus metrics
 * **Single HTTP endpoint:** `POST /chat`
@@ -32,44 +35,30 @@ curl -s -X POST http://localhost:8000/chat \
   -d '{"session_id":"abc123","message":"I want to cancel my order ORD-4567"}' | jq
 ```
 
+Alternatively use Docker:
+```bash
+docker compose build
+docker compose up -d
+```
+
 * OpenAPI/Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
 * Metrics: [http://localhost:8000/metrics](http://localhost:8000/metrics)
 * Health: [http://localhost:8000/healthz](http://localhost:8000/healthz)
 
 ---
+## Parameters
+Parameters are defined in `.env` file (see `.env_example`) and initialized in `config.py`. Here are definitions 
+for some of the key parameters:
+
+| Parameter                    | Type |                                                                                  Explanation |
+|------------------------------|:----:|---------------------------------------------------------------------------------------------:|
+| KNOWLEDGE_BASE_STORAGE_NAME  | str  |    Knowldge base storage type. Supported types: `ChromaKnowledgeBase`, `JsonKVKnowledgeBase` |
+| ORDER_API_CLIENT_NAME        | str  | Client type for order API. Supported types: `OrderAPILocalClient`, `OrderAPIBeeceptorClient` |
+| ROUTER_NAME                  | str  |            Intent router name. Supported types: `IntentMLRouter`, `LLMRouter`, `NaiveRouter` |
 
 ## Architecture (Multi‑Agent Orchestration)
 
-```
-                    ┌──────────────────────────────┐
-   POST /chat  ───▶ │       OrchestratorAgent      │
-                    │  (intent routing + policy)   │
-                    └─────────────┬────────────────┘
-                                  │handovers
-          ┌───────────────────────┼──────────────────────────┐
-          ▼                       ▼                          ▼
-┌──────────────────┐   ┌───────────────────┐       ┌───────────────────┐
-│CancellationAgent │   │ TrackingAgent     │       │ ProductQAAgent    │
-│ - validate ID    │   │ - validate ID     │       │ - FAQ / RAG       │
-│ - <24h window    │   │ - call tracking   │       │ - KB search       │
-│ - call cancel API│   │ - format ETA      │       │ - follow-ups      │
-└─────────┬────────┘   └─────────┬─────────┘       └─────────┬─────────┘
-          │ tools                │ tools                      │ tools
-          ▼                      ▼                            ▼
-   ┌──────────────┐       ┌──────────────┐               ┌──────────────┐
-   │OrderAPIClient│       │OrderAPIClient│               │ KnowledgeBase │
-   │ (mock)       │       │ (mock)       │               │  (JSON/embeds)│
-   └──────────────┘       └──────────────┘               └──────────────┘
-
-                  ┌───────────────────────────────────────────────────┐
-                  │ Session Store (Redis or in‑memory)                │
-                  │   - state by session_id                           │
-                  │   - last product context, last order ID           │
-                  │   - full history for multi‑turn continuity        │
-                  └───────────────────────────────────────────────────┘
-
-      Observability: Structured logs + Prometheus metrics + handover trail
-```
+![Architecture](images/zendesk-diagram.png "architecture")
 
 ### Multi‑Turn State & Context
 
@@ -79,13 +68,13 @@ curl -s -X POST http://localhost:8000/chat \
   {
     "session_id": "abc123",
     "history": [{"role":"user","content":"..."}, {"role":"assistant","content":"..."}],
-    "last_product_context": "Bluetooth headphones",
+    "last_product_context": "Can you track ORD-4567?",
     "last_order_id": "ORD-4567",
     "created_at": "2025-10-24T17:00:00Z",
     "updated_at": "2025-10-24T17:05:00Z"
   }
   ```
-* The orchestrator and agents **read/write** this dict. Example: if the user says *“Can I return my Bluetooth headphones?”* then later says *“Alright, cancel the order for that then.”*, the system uses `last_product_context` + `last_order_id` to infer intent.
+* The orchestrator and agents **read/write** this dict. Example: if the user says *“Can you track ORD-4567?”* then later says *“Alright, cancel it.”*, the system uses `last_product_context` + `last_order_id` + `history` to infer intent.
 
 ### Structured Outputs
 
@@ -106,11 +95,11 @@ Every response returns:
 
 ## Business Policies (Enforced)
 
-**Order ID format**: `ORD-XXXX` (four digits). Regex: `^ORD-\d{4}$`
+**Order ID format**: `ORD-XXXX` (four digits). Regex: `ORD-\d{4}`
 
 **Cancellation window**: placed **< 24 hours** ago.
 
-**Tracking**: return discrete status + ETA date from the mock API.
+**Tracking**: return discrete status + ETA date from the mock or Beeceptor API.
 
 **Product Info**: lookup from `kb/faq.json` (string search) or enable embeddings (RAG) via `ENABLE_EMBEDDINGS=true`.
 
@@ -118,13 +107,27 @@ Every response returns:
 
 ## Files
 
-* `app.py` — FastAPI app, orchestrator, agents, tools, and session store (single file for simplicity)
+* `app.py` — FastAPI app, orchestrator, agents, tools, and session store
+* `agent.py` — orchestrator, agents
+* `prompts.py` — LLM prompts
+* `agent.py` — orchestrator, agents
+* `config.py` — input config
+* `memory`:
+  * `redis_impl.py` — redis implementation or in-memory store
+* `kb`:
+  * `chroma_impl.py` — ChromaDB vector DB
+  * `json_kv_impl.py` - JSON KV DB
+  * `faq.json` — sample knowledge base
+* `routers`:
+  * `intent_ml_router.py` — ML router
+  * `llm_router.py` - LLM router
+  * `naive_router.py` — rule-based router
 * `requirements.txt` — dependencies
-* `kb/faq.json` — sample knowledge base
 * `Dockerfile` — container image
 * `docker-compose.yml` — optional Redis + app stack
 
 ---
 
 ## Tests
-* ` pytest tests/test_beeceptor.py`
+* `test/test_chat.py` — unit tests
+* `test/evals_policy.py` — policy evals 

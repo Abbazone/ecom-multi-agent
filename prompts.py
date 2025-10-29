@@ -21,6 +21,7 @@ Current message:
 
 Known entities:
 last_order_id: {last_order_id}
+last_product_context: {last_product_context}
 
 Decide if the user is referring to a specific order, typically formatted as YYY-XXXX.
 Respond as JSON: {{

@@ -1,6 +1,7 @@
 import json, re, importlib, pytest
 from fastapi.testclient import TestClient
 
+
 SCENARIOS = [
     {
         "name": "track_known_order",
@@ -52,7 +53,7 @@ SCENARIOS = [
 def fresh_app(monkeypatch):
     monkeypatch.delenv("REDIS_URL", raising=False)
     mod = importlib.import_module("app")
-    importlib.reload(mod)
+    # importlib.reload(mod)
     if hasattr(mod, "store") and hasattr(mod.store, "_mem"):
         mod.store._mem.clear()
 

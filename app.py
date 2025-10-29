@@ -3,9 +3,10 @@ import json
 import time
 import logging
 import uuid
+from typing import Optional
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST # Optional metrics
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST, REGISTRY
 
 from config import LOG_LEVEL
 from schema import ChatResponse, ChatRequest
@@ -33,6 +34,25 @@ logger.setLevel(LOG_LEVEL)
 logger.addHandler(handler)
 logger.propagate = False
 
+REQUEST_COUNTER: Optional[Counter] = None
+REQUEST_LATENCY: Optional[Histogram] = None
+
+
+def init_metrics(registry=REGISTRY) -> None:
+    global REQUEST_COUNTER, REQUEST_LATENCY
+    if REQUEST_COUNTER is None:
+        REQUEST_COUNTER = Counter(
+            "chat_requests_total",
+            "Total /chat requests",
+            ["agent", "status"],
+            registry=registry,
+        )
+    if REQUEST_LATENCY is None:
+        REQUEST_LATENCY = Histogram(
+            "chat_request_seconds",
+            "Latency of /chat requests in seconds",
+            registry=registry,
+        )
 
 # REQUEST_COUNTER = Counter(
 #     "chat_requests_total",
@@ -61,6 +81,7 @@ def metrics():
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, request: Request):
+    init_metrics()
     request_id = str(uuid.uuid4())
     session_id = req.session_id
     start = time.time()
@@ -79,7 +100,7 @@ def chat(req: ChatRequest, request: Request):
         state["history"].append({"role": "assistant", "content": resp.response, "agent": resp.agent})
         # Metrics
         latency = time.time() - start
-        # REQUEST_COUNTER.labels(agent=resp.agent, status="200").inc()
+        REQUEST_COUNTER.labels(agent=resp.agent, status="200").inc()
         # REQUEST_LATENCY.observe(latency)
         # Logging
         logger.info(

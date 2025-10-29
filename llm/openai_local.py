@@ -48,9 +48,11 @@ class LLMContextResolver:
         """Return {resolved_order_id, confidence, reasoning}"""
         history = state.get("history", [])[-5:]
         last_order_id = state.get("last_order_id")
+        last_product_context = state.get("last_product_context")
         prompt = PROMPTS['context_resolver'].format(
             history=json.dumps(history, indent=2),
             last_order_id=last_order_id,
+            last_product_context=last_product_context,
             message=message,
         )
         delay = OPENAI_BACKOFF

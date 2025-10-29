@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Optional
 
 from base import (
@@ -7,7 +8,9 @@ from base import (
 
 
 class JsonKVKnowledgeBase(BaseKVStorage):
-    def __init__(self, path: str = "kb/faq.json"):
+    def __init__(self, path: str = None):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(base_dir, "faq.json")
         try:
             with open(path, "r", encoding="utf-8") as f:
                 self.qa = json.load(f)
@@ -20,11 +23,10 @@ class JsonKVKnowledgeBase(BaseKVStorage):
             ]
 
     def search(self, query: str) -> Optional[str]:
-        q = query.lower()
-        # simple contains search; pluggable RAG can be added here
         best = None
+        q = query.lower()
         for item in self.qa:
-            if item["q"] in q or q in item["q"]:
+            if item["q"].lower() in q or q in item["q"].lower():
                 best = item["a"]
-                break
+
         return best

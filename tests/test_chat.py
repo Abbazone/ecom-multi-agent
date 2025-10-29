@@ -82,7 +82,7 @@ def test_cancellation_unknown_order(client):
     """
     data = _post_chat(client, "s4", "Cancel ORD-9999")
     assert data["agent"] == "OrderCancellationAgent"
-    assert "❗" in data["response"].lower(), data
+    assert "couldn’t" in data["response"].lower(), data
 
 
 def test_invalid_order_id_prompts_for_format(client):

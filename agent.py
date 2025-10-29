@@ -62,9 +62,9 @@ class OrderCancellationAgent(Agent):
 
         order = order_api.get_order(order_id)
         if not order:
-            msg = f"I couldn't find {order_id}. Please double‑check the ID."
+            msg = f"couldn’t find {order_id}. Please double‑check the ID."
             self.log(request_id, session_id, msg)
-            return self.respond(f"I couldn't find {order_id}. Please double‑check the ID.", "OrchestratorAgent")
+            return self.respond(f"I couldn’t find {order_id}. Please double‑check the ID.", "OrchestratorAgent")
 
         # Perform cancellation via tool
         result = order_api.cancel_order(order_id)
@@ -76,10 +76,13 @@ class OrderCancellationAgent(Agent):
 
         if result.status == "cancelled":
             self.state["last_order_id"] = order_id
+            self.log(request_id, session_id, f'{order_id} is cancelled.')
             return self.respond(f"✅ Done! {order_id} is cancelled and your payment will be refunded.", "OrchestratorAgent")
         elif result.status == "ineligible":
+            self.log(request_id, session_id, f'{order_id} is ineligible for cancellation (placed > 24h ago)')
             return self.respond(f"⛔️{order_id} is ineligible for cancellation (placed > 24h ago).", "OrchestratorAgent")
         else:
+            self.log(request_id, session_id, f'{order_id} couldn’t canceled.')
             return self.respond(f"❗couldn’t cancel {order_id}. Please contact support.", "OrchestratorAgent")
 
 
@@ -89,14 +92,18 @@ class OrderTrackingAgent(Agent):
     def handle(self, request_id: str, session_id: str, message: str) -> ChatResponse:
         order_id = resolve_order_id_from_context(self.state, message)
         if not order_id:
+            self.log(request_id, session_id, f'Missing order ID.')
             return self.respond("I can help track your order. What’s your ID? (e.g., ORD-1234)", "OrchestratorAgent")
         if not ORDER_ID_RE.match(order_id):
+            self.log(request_id, session_id, f'Invalid order ID.')
             return self.respond("Please provide a valid order ID like ORD-1234.", "OrchestratorAgent")
         result = order_api.track_order(order_id)
         self.tool_calls.append({"tool": "OrderTrackingAPI", "input": {"orderId": order_id}, "result": result})
         if result.get("status") == "not_found":
+            self.log(request_id, session_id, f"I couldn't find {order_id}.")
             return self.respond(f"I couldn't find {order_id}.", "OrchestratorAgent")
         self.state["last_order_id"] = order_id
+        self.log(request_id, session_id, f"Current status for {order_id}: {result['status']}")
         return self.respond(
             f"Current status for {order_id}: {result['status']}. Estimated delivery: {result['eta']}.",
             "OrchestratorAgent",
@@ -112,6 +119,7 @@ class ProductQAAgent(Agent):
             "Here’s what I found: our standard return window is 30 days. "
             "Shipping is usually 3–5 business days. For specifics, ask about a product feature."
         )
+        self.log(request_id, session_id, f"Product and service related info: {ans}")
         return self.respond(ans, "OrchestratorAgent")
 
 

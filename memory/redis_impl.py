@@ -16,11 +16,11 @@ class SessionStore:
     def __init__(self):
         self._use_redis = False
         self._r = None
-        self.logger = logging.getLogger("SessionStore")
+        self.logger = logging.getLogger("app")
         if REDIS_URL and redis is not None:
             try:
                 # self._r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
-                self._r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+                self._r = redis.Redis(host=REDIS_URL, port=6379, db=0, decode_responses=True)
                 # health check
                 self._r.ping()
                 self._use_redis = True
