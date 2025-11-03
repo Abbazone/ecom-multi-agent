@@ -58,7 +58,7 @@ for some of the key parameters:
 
 ## Architecture (Multi‑Agent Orchestration)
 
-![Architecture](images/zendesk-diagram.png "architecture")
+![Architecture](images/workflow.png "architecture")
 
 ### Multi‑Turn State & Context
 
