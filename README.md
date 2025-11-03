@@ -47,8 +47,8 @@ docker compose up -d
 
 ---
 ## Parameters
-Parameters are defined in `.env` file (see `.env_example`) and initialized in `config.py`. Here are definitions 
-for some of the key parameters:
+Parameters are defined in `.env` file (see `.env.example` for an example) and initialized in `config.py`. 
+Here are the definitions for some of the key parameters:
 
 | Parameter                    | Type |                                                                                  Explanation |
 |------------------------------|:----:|---------------------------------------------------------------------------------------------:|
