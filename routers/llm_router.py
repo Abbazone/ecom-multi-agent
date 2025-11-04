@@ -3,7 +3,6 @@ import sys
 import json
 from typing import Tuple, Dict, Any
 from openai import OpenAI
-from dotenv import load_dotenv
 
 from routers.naive_router import NaiveRouter
 from routers import Intent, INTENT_LIST
