@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST, REGISTRY
 
 from config import LOG_LEVEL
-from schema import ChatResponse, ChatRequest
+from models import ChatResponse, ChatRequest
 from agent import OrchestratorAgent
 from memory.redis_impl import SessionStore
 
@@ -54,16 +54,6 @@ def init_metrics(registry=REGISTRY) -> None:
             registry=registry,
         )
 
-# REQUEST_COUNTER = Counter(
-#     "chat_requests_total",
-#     "Total /chat requests",
-#     ["agent", "status"]
-# )
-# REQUEST_LATENCY = Histogram(
-#     "chat_request_seconds",
-#     "Latency of /chat requests in seconds",
-# )
-
 
 store = SessionStore()
 app = FastAPI(title="E‑commerce Multi‑Agent CS System", version="1.0.0")
@@ -101,7 +91,7 @@ def chat(req: ChatRequest, request: Request):
         # Metrics
         latency = time.time() - start
         REQUEST_COUNTER.labels(agent=resp.agent, status="200").inc()
-        # REQUEST_LATENCY.observe(latency)
+        REQUEST_LATENCY.observe(latency)
         # Logging
         logger.info(
             "Handled chat",
@@ -109,7 +99,7 @@ def chat(req: ChatRequest, request: Request):
         )
         return JSONResponse(status_code=200, content=json.loads(resp.model_dump_json()))
     except Exception as e:
-        # REQUEST_COUNTER.labels(agent="error", status="500").inc()
+        REQUEST_COUNTER.labels(agent="error", status="500").inc()
         logger.exception("Chat error",
                          extra={"extra_data": {"request_id": request_id, "session_id": session_id, "agent": "OrchestratorAgent"}})
         return JSONResponse(status_code=500, content={

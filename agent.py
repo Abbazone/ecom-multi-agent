@@ -1,7 +1,7 @@
 import logging
 from dataclasses import asdict
 
-from schema import *
+from models import *
 from utils import get_storage_class, get_api_class, get_router_class
 from llm.openai_local import LLMContextResolver
 from config import (
