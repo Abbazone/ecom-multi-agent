@@ -3,7 +3,7 @@ from dataclasses import asdict
 
 from models import *
 from utils import get_storage_class, get_api_class, get_router_class
-from llm.openai_local import LLMContextResolver
+from llm.openai_client import OpenAIClient
 from config import (
     ORDER_ID_RE,
     RESOLVER_MIN_CONF,
@@ -144,7 +144,7 @@ class OrchestratorAgent(Agent):
         # Call the resolver before routing to prefill last_order_id if message has no explicit ID and contains pronouns
         low = message.lower()
         if not ORDER_ID_RE.search(message) and any(p in low for p in ["it", "that", "this", "same"]):
-            res = LLMContextResolver().resolve_order_id(message, self.state)
+            res = OpenAIClient().resolve_order_id(message, self.state)
             if res.id and res.confidence >= RESOLVER_MIN_CONF:
                 self.log(msg=f'Resolving order_id from message with resolver"{message}" -> {res.id}',
                          request_id=request_id,
@@ -183,7 +183,7 @@ def resolve_order_id_from_context(state: dict, message: str) -> Optional[str]:
         return m.group(0)
 
     # 2) Try LLM resolver
-    resolver = LLMContextResolver()
+    resolver = OpenAIClient()
     res = resolver.resolve_order_id(message, state)
     if res.id and res.confidence >= RESOLVER_MIN_CONF:
         return res.id
