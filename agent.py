@@ -145,20 +145,20 @@ class OrchestratorAgent(Agent):
         low = message.lower()
         if not ORDER_ID_RE.search(message) and any(p in low for p in ["it", "that", "this", "same"]):
             res = LLMContextResolver().resolve_order_id(message, self.state)
-            if res.get("resolved_order_id") and res.get("confidence", 0) >= RESOLVER_MIN_CONF:
-                self.log(msg=f'Resolving order_id from message with resolver"{message}" -> {res["resolved_order_id"]}',
+            if res.id and res.confidence >= RESOLVER_MIN_CONF:
+                self.log(msg=f'Resolving order_id from message with resolver"{message}" -> {res.id}',
                          request_id=request_id,
                          session_id=session_id)
-                self.state["last_order_id"] = res["resolved_order_id"]
+                self.state["last_order_id"] = res.id
 
             # Emit a resolver call for observability
             self.tool_calls.append({
                 "tool": "LLMContextResolver",
                 "input": {"text": message, 'history': self.state['history'][-5:]},
                 "result": {
-                    "resolved_order_id": res['resolved_order_id'],
-                    "confidence": res['confidence'],
-                    "reasoning": res['reasoning']
+                    "resolved_order_id": res.id,
+                    "confidence": res.confidence,
+                    "reasoning": res.reasoning
                 }
             })
 
@@ -185,8 +185,8 @@ def resolve_order_id_from_context(state: dict, message: str) -> Optional[str]:
     # 2) Try LLM resolver
     resolver = LLMContextResolver()
     res = resolver.resolve_order_id(message, state)
-    if res.get("confidence", 0) >= RESOLVER_MIN_CONF and res.get("resolved_order_id"):
-        return res["resolved_order_id"]
+    if res.id and res.confidence >= RESOLVER_MIN_CONF:
+        return res.id
 
     # 3) Fallback to last_order_id
     return state.get("last_order_id")

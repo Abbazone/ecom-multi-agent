@@ -25,7 +25,7 @@ last_product_context: {last_product_context}
 
 Decide if the user is referring to a specific order, typically formatted as YYY-XXXX.
 Respond as JSON: {{
-  "resolved_order_id": "<ORD-XXXX or null>",
+  "id": "<ORD-XXXX or ABC-XXXX or null>",
   "confidence": <0-1>,
   "reasoning": "<brief explanation>"
 }}

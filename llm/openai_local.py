@@ -2,9 +2,9 @@ import os
 import time
 import logging
 import json
-from typing import List
+from typing import List, Optional
 from openai import OpenAI
-from dotenv import load_dotenv
+from pydantic import BaseModel, Field
 
 from prompts import PROMPTS
 from utils import completion_with_backoff, embedding_with_backoff
@@ -38,13 +38,22 @@ class OpenAIEmbedder:
         self.logger.error(f"All {OPENAI_MAX_RETRIES} embedding attempts failed: {last_exc}")
         raise last_exc
 
+# ---------------------------------------------------------------------------
+# Pydantic Schemas (robustness against LLM output drift)
+# ---------------------------------------------------------------------------
+class ResolvedOrder(BaseModel):
+    id: Optional[str] = None
+    confidence: float = 0.0
+    reasoning: Optional[str] = None
+
 
 class LLMContextResolver:
     def __init__(self):
-        self.client = completion_with_backoff
+        # self.client = completion_with_backoff
+        self.client = OpenAI()
         self.logger = logging.getLogger("app")
 
-    def resolve_order_id(self, message: str, state: dict) -> dict:
+    def resolve_order_id(self, message: str, state: dict) -> ResolvedOrder:
         """Return {resolved_order_id, confidence, reasoning}"""
         history = state.get("history", [])[-5:]
         last_order_id = state.get("last_order_id")
@@ -59,18 +68,22 @@ class LLMContextResolver:
         last_exc = None
         for attempt in range(1, OPENAI_MAX_RETRIES + 1):
             try:
-                resp = self.client(
+                resp = self.client.responses.create(
                     model=RESOLVER_MODEL,
                     input=prompt,
                     temperature=0.0
                 )
-                data = json.loads(resp.output[0].content[0].text)
-                return data
+                raw = resp.output[0].content[0].text
+                try:
+                    data = json.loads(raw)
+                except json.JSONDecodeError as json_decode_error:
+                    self.logger.error(f'Context Resolver JSON Decode Error: {json_decode_error}')
+                resolved_order = ResolvedOrder.model_validate(data)
+                return resolved_order
             except Exception as e:
                 last_exc = e
                 self.logger.warning(f"LLM resolver attempt {attempt} failed: {e}. Retrying in {delay:.1f}s...")
                 time.sleep(delay)
                 delay *= 2
             self.logger.error(f"All {OPENAI_MAX_RETRIES} LLM attempts failed: {last_exc}")
-            data = {"resolved_order_id": None, "confidence": 0, "reasoning": f'resolver error {last_exc}'}
-        return data
+        return ResolvedOrder()
