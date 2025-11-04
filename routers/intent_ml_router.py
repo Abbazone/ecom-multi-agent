@@ -29,7 +29,7 @@ class IntentMLRouter:
         if not (TfidfVectorizer and LinearSVC and Pipeline):
             raise RuntimeError("scikit‑learn not available; install scikit‑learn or use ROUTER_MODE=naive/llm")
         self.pipe: Pipeline = Pipeline([
-            ("tfidf", TfidfVectorizer(ngram_range=(1,2), min_df=1)),
+            ("tfidf", TfidfVectorizer(ngram_range=(1, 2), min_df=1)),
             ("clf", DecisionTreeClassifier())
             # ("clf", LinearSVC())
         ])

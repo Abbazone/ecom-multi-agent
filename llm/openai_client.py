@@ -7,6 +7,7 @@ from openai import OpenAI
 from pydantic import BaseModel, Field
 
 from prompts import PROMPTS
+from routers import INTENT_LIST
 from utils import completion_with_backoff, embedding_with_backoff
 from config import (
     OPENAI_EMBED_MODEL,
@@ -17,34 +18,18 @@ from config import (
 )
 
 
-# class OpenAIEmbedder:
-#     def __init__(self):
-#         base = os.getenv("OPENAI_BASE")
-#         self.client = embedding_with_backoff
-#         self.logger = logging.getLogger("app")
-#
-#     def embed(self, texts: List[str]) -> List[List[float]]:
-#         delay = OPENAI_BACKOFF
-#         last_exc = None
-#         for attempt in range(1, OPENAI_MAX_RETRIES + 1):
-#             try:
-#                 resp = self.client.embeddings.create(model=OPENAI_EMBED_MODEL, input=texts, timeout=OPENAI_TIMEOUT)
-#                 return [d.embedding for d in resp.data]
-#             except Exception as e:
-#                 last_exc = e
-#                 self.logger.warning(f"Embedding attempt {attempt} failed: {e}. Retrying in {delay:.1f}s...")
-#                 time.sleep(delay)
-#                 delay *= 2
-#         self.logger.error(f"All {OPENAI_MAX_RETRIES} embedding attempts failed: {last_exc}")
-#         raise last_exc
-
-# ---------------------------------------------------------------------------
-# Pydantic Schemas (robustness against LLM output drift)
-# ---------------------------------------------------------------------------
 class ResolvedOrder(BaseModel):
     id: Optional[str] = None
     confidence: float = 0.0
     reasoning: Optional[str] = None
+    err: Optional[str] = None
+
+
+class IntentResult(BaseModel):
+    intent: Optional[str] = None
+    confidence: float = 0.0
+    rationale: Optional[str] = None
+    err: Optional[str] = None
 
 
 class OpenAIClient:
@@ -100,5 +85,58 @@ class OpenAIClient:
                 self.logger.warning(f"LLM resolver attempt {attempt} failed: {e}. Retrying in {delay:.1f}s...")
                 time.sleep(delay)
                 delay *= 2
-            self.logger.error(f"All {OPENAI_MAX_RETRIES} LLM attempts failed: {last_exc}")
-        return ResolvedOrder()
+        self.logger.error(f"All {OPENAI_MAX_RETRIES} LLM attempts failed: {last_exc}")
+
+        return ResolvedOrder(err=last_exc)
+
+    def route(self, text: str) -> IntentResult:
+        sys = (
+            "You are an intent router. Classify the user message into exactly one of: "
+            "order_cancellation | order_tracking | product_qa. "
+            "Return strict JSON: {intent: string, confidence: number, rationale: string}."
+        )
+        prompt = PROMPTS['router_prompt'].format(text=text)
+        delay = OPENAI_BACKOFF
+        last_exc = None
+        for attempt in range(1, OPENAI_MAX_RETRIES + 1):
+            try:
+                resp = self.client.chat.completions.create(
+                    model=RESOLVER_MODEL,
+                    temperature=0.0,
+                    messages=[
+                        {"role": "system", "content": sys},
+                        {"role": "user", "content": prompt},
+                    ],
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "intent_schema",
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "intent": {
+                                        "type": "string",
+                                        "enum": INTENT_LIST
+                                    }
+                                },
+                                "required": ["intent"],
+                                "additionalProperties": False
+                            },
+                        },
+                    },
+                )
+                content = resp.choices[0].message.content
+                try:
+                    data = json.loads(content)
+                except json.JSONDecodeError as json_decode_error:
+                    self.logger.error(f'LLM Router JSON Decode Error: {json_decode_error}')
+
+                intent_result = IntentResult.model_validate(data)
+                return intent_result
+            except Exception as e:
+                last_exc = e
+                self.logger.warning(f"LLM router attempt {attempt} failed: {e}. Retrying in {delay:.1f}s...")
+                time.sleep(delay)
+                delay *= 2
+        self.logger.error(f"All {OPENAI_MAX_RETRIES} LLM attempts failed: {last_exc}")
+        return IntentResult(err=str(last_exc))

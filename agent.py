@@ -131,14 +131,15 @@ class OrchestratorAgent(Agent):
         self.router = router
 
     def handle(self, request_id: str, session_id: str, message: str) -> ChatResponse:
-        intent, confidence, meta = self.router.route(message)
+        intent_result = self.router.route(message)
+        intent = intent_result.intent
         self.log(msg=f'Routing message: {message} -> {intent}', request_id=request_id, session_id=session_id)
 
         # Emit a Router tool call for observability
         self.tool_calls.append({
             "tool": "Router",
             "input": {"mode": ROUTER_NAME, "text": message},
-            "result": {"intent": intent, "confidence": round(float(confidence), 4), "meta": meta}
+            "result": intent_result.model_dump()
         })
 
         # Call the resolver before routing to prefill last_order_id if message has no explicit ID and contains pronouns

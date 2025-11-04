@@ -5,6 +5,7 @@ from typing import Tuple, Dict, Any
 from openai import OpenAI
 
 from routers.naive_router import NaiveRouter
+from llm.openai_client import OpenAIClient, IntentResult
 from routers import Intent, INTENT_LIST
 from config import (
     ROUTER_LLM_MODEL,
@@ -16,55 +17,19 @@ from prompts import PROMPTS
 
 class LLMRouter:
     def __init__(self):
-        self.client = OpenAI()
+        self.client = OpenAIClient()
         self.model = ROUTER_LLM_MODEL
         self.temperature = ROUTER_LLM_TEMPERATURE
 
-    def route(self, text: str) -> Tuple[Intent, float, Dict[str, Any]]:
-        sys = (
-            "You are an intent router. Classify the user message into exactly one of: "
-            "order_cancellation | order_tracking | product_qa. "
-            "Return strict JSON: {intent: string, confidence: number, rationale: string}."
-        )
-        prompt = PROMPTS['router_prompt'].format(text=text)
-        for attempt in range(1, OPENAI_MAX_RETRIES + 1):
-            try:
-                resp = self.client.chat.completions.create(
-                    model=self.model,
-                    temperature=self.temperature,
-                    messages=[
-                        {"role": "system", "content": sys},
-                        {"role": "user", "content": prompt},
-                    ],
-                    response_format={
-                        "type": "json_schema",
-                        "json_schema": {
-                            "name": "intent_schema",
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "intent": {
-                                        "type": "string",
-                                        "enum": INTENT_LIST
-                                    }
-                                },
-                                "required": ["intent"],
-                                "additionalProperties": False
-                            },
-                        },
-                    },
-                )
-                content = resp.choices[0].message.content
-                data = json.loads(content)
-                intent = data.get("intent", "product_qa")
-                conf = float(data.get("confidence", 0.0))
-                return intent, conf, {"rationale": data.get("rationale", "")}
-            except Exception as e:
-                # Fallback to naive on parsing errors
-                nr = NaiveRouter()
-                intent, conf, meta = nr.route(text)
-                meta.update({"llm_error": str(e)})
-                return intent, conf, meta
+    def route(self, text: str) -> IntentResult:
+        intent_result = self.client.route(text)
+        if not intent_result.err:
+            return intent_result
+        else:
+            # Fallback to naive on parsing errors
+            nr = NaiveRouter()
+            intent, conf, meta = nr.route(text)
+            return IntentResult(intent=intent, confidence=conf, rationale='matched', err=f"llm_error: {intent_result.err}")
 
 
 if __name__ == "__main__":
