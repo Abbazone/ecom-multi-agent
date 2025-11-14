@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any
 
 
-PROMPTS: dict[str, Any] = {}
+PROMPTS: dict[str, Any] = dict()
 
 
 PROMPTS['router_prompt'] = """

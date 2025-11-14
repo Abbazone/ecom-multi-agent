@@ -12,12 +12,6 @@ from prompts import PROMPTS
 
 cfg = settings.openai
 
-# from config import (
-#     ROUTER_LLM_MODEL,
-#     ROUTER_LLM_TEMPERATURE,
-#     OPENAI_MAX_RETRIES
-# )
-
 
 class LLMRouter:
     def __init__(self):

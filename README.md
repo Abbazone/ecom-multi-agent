@@ -35,6 +35,8 @@ curl -s -X POST http://localhost:8000/chat \
   -d '{"session_id":"abc123","message":"I want to cancel my order ORD-4567"}' | jq
 ```
 
+
+
 Alternatively use Docker:
 ```bash
 docker compose build
@@ -44,6 +46,19 @@ docker compose up -d
 * OpenAPI/Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
 * Metrics: [http://localhost:8000/metrics](http://localhost:8000/metrics)
 * Health: [http://localhost:8000/healthz](http://localhost:8000/healthz)
+
+If you prefer a chat UI, then try the following:
+
+```bash
+# Gradio Chat UI
+# terminal 1 – backend
+uvicorn app:app --reload --host 0.0.0.0 --port 8000
+
+# terminal 2 – UI
+python ui_gradio.py
+```
+
+That will open a browser tab with a chat window.
 
 ---
 ## Parameters
