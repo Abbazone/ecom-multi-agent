@@ -12,17 +12,17 @@ from api import APIS
 from routers import ROUTERS
 
 
-client = OpenAI()
-
-
-@retry(wait=wait_random_exponential(min=1, max=5), stop=stop_after_attempt(3))
-def completion_with_backoff(**kwargs):
-    return client.responses.create(**kwargs)
-
-
-@retry(wait=wait_random_exponential(min=1, max=5), stop=stop_after_attempt(3))
-def embedding_with_backoff(model, input, timeout):
-    return client.embeddings.create(input=input, model=model, timeout=timeout)
+# client = OpenAI()
+#
+#
+# @retry(wait=wait_random_exponential(min=1, max=5), stop=stop_after_attempt(3))
+# def completion_with_backoff(**kwargs):
+#     return client.responses.create(**kwargs)
+#
+#
+# @retry(wait=wait_random_exponential(min=1, max=5), stop=stop_after_attempt(3))
+# def embedding_with_backoff(model, input, timeout):
+#     return client.embeddings.create(input=input, model=model, timeout=timeout)
 
 
 def lazy_external_import(module_name: str, class_name: str) -> Callable[..., Any]:

@@ -12,3 +12,4 @@ chromadb
 numpy
 scikit-learn==1.6.1
 tenacity
+pydantic-settings

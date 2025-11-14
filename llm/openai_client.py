@@ -8,14 +8,9 @@ from pydantic import BaseModel, Field
 
 from prompts import PROMPTS
 from routers import INTENT_LIST
-from utils import completion_with_backoff, embedding_with_backoff
-from config import (
-    OPENAI_EMBED_MODEL,
-    OPENAI_TIMEOUT,
-    OPENAI_MAX_RETRIES,
-    OPENAI_BACKOFF,
-    RESOLVER_MODEL
-)
+from config.settings import settings
+
+openai_cfg = settings.openai
 
 
 class ResolvedOrder(BaseModel):
@@ -35,22 +30,22 @@ class IntentResult(BaseModel):
 class OpenAIClient:
     def __init__(self):
         # self.client = completion_with_backoff
-        self.client = OpenAI()
+        self.client = OpenAI(api_key=openai_cfg.api_key)
         self.logger = logging.getLogger("app")
 
     def embed(self, texts: List[str]) -> List[List[float]]:
-        delay = OPENAI_BACKOFF
+        delay = openai_cfg.backoff_factor
         last_exc = None
-        for attempt in range(1, OPENAI_MAX_RETRIES + 1):
+        for attempt in range(1, openai_cfg.max_retries + 1):
             try:
-                resp = self.client.embeddings.create(model=OPENAI_EMBED_MODEL, input=texts, timeout=OPENAI_TIMEOUT)
+                resp = self.client.embeddings.create(model=openai_cfg.embedding_model, input=texts, timeout=openai_cfg.request_timeout_seconds)
                 return [d.embedding for d in resp.data]
             except Exception as e:
                 last_exc = e
                 self.logger.warning(f"Embedding attempt {attempt} failed: {e}. Retrying in {delay:.1f}s...")
                 time.sleep(delay)
                 delay *= 2
-        self.logger.error(f"All {OPENAI_MAX_RETRIES} embedding attempts failed: {last_exc}")
+        self.logger.error(f"All {openai_cfg.max_retries} embedding attempts failed: {last_exc}")
         raise last_exc
 
     def resolve_order_id(self, message: str, state: dict) -> ResolvedOrder:
@@ -64,12 +59,12 @@ class OpenAIClient:
             last_product_context=last_product_context,
             message=message,
         )
-        delay = OPENAI_BACKOFF
+        delay = openai_cfg.backoff_factor
         last_exc = None
-        for attempt in range(1, OPENAI_MAX_RETRIES + 1):
+        for attempt in range(1, openai_cfg.max_retries + 1):
             try:
                 resp = self.client.responses.create(
-                    model=RESOLVER_MODEL,
+                    model=openai_cfg.chat_model,
                     input=prompt,
                     temperature=0.0
                 )
@@ -85,7 +80,7 @@ class OpenAIClient:
                 self.logger.warning(f"LLM resolver attempt {attempt} failed: {e}. Retrying in {delay:.1f}s...")
                 time.sleep(delay)
                 delay *= 2
-        self.logger.error(f"All {OPENAI_MAX_RETRIES} LLM attempts failed: {last_exc}")
+        self.logger.error(f"All {openai_cfg.max_retries} LLM attempts failed: {last_exc}")
 
         return ResolvedOrder(err=last_exc)
 
@@ -96,12 +91,12 @@ class OpenAIClient:
             "Return strict JSON: {intent: string, confidence: number, rationale: string}."
         )
         prompt = PROMPTS['router_prompt'].format(text=text)
-        delay = OPENAI_BACKOFF
+        delay = openai_cfg.backoff_factor
         last_exc = None
-        for attempt in range(1, OPENAI_MAX_RETRIES + 1):
+        for attempt in range(1, openai_cfg.max_retries + 1):
             try:
                 resp = self.client.chat.completions.create(
-                    model=RESOLVER_MODEL,
+                    model=openai_cfg.chat_model,
                     temperature=0.0,
                     messages=[
                         {"role": "system", "content": sys},
@@ -138,5 +133,5 @@ class OpenAIClient:
                 self.logger.warning(f"LLM router attempt {attempt} failed: {e}. Retrying in {delay:.1f}s...")
                 time.sleep(delay)
                 delay *= 2
-        self.logger.error(f"All {OPENAI_MAX_RETRIES} LLM attempts failed: {last_exc}")
+        self.logger.error(f"All {openai_cfg.max_retries} LLM attempts failed: {last_exc}")
         return IntentResult(err=str(last_exc))

@@ -8,10 +8,13 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST, REGISTRY
 
-from config import LOG_LEVEL
+# from config import LOG_LEVEL
 from models import ChatResponse, ChatRequest
 from agent import OrchestratorAgent
 from memory.redis_impl import SessionStore
+from config.settings import settings
+
+cfg = settings
 
 
 class JsonFormatter(logging.Formatter):
@@ -30,7 +33,7 @@ class JsonFormatter(logging.Formatter):
 handler = logging.StreamHandler()
 handler.setFormatter(JsonFormatter())
 logger = logging.getLogger("app")
-logger.setLevel(LOG_LEVEL)
+logger.setLevel(cfg.logging.level)
 logger.addHandler(handler)
 logger.propagate = False
 

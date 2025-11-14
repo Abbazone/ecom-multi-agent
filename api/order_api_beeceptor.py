@@ -6,27 +6,24 @@ from typing import Any, Dict, Optional
 
 from base import OrderAPIBase
 from models import OrderCancellationResult
-from config import (
-    BEECEPTOR_BASE,
-    HTTPX_TIMEOUT,
-    HTTPX_MAX_RETRIES,
-    HTTPX_BACKOFF_FACTOR
-)
+from config.settings import settings
+
+cfg = settings.order_api
 
 
 class OrderAPIBeeceptorClient(OrderAPIBase):
     def __init__(self):
-        self.base = BEECEPTOR_BASE
-        self.client = httpx.Client(timeout=HTTPX_TIMEOUT)
+        self.base = cfg.base_url
+        self.client = httpx.Client(timeout=cfg.timeout_seconds)
         self.logger = logging.getLogger("app")
 
     def _url(self, path: str) -> str:
         return f"{self.base}{path}"
 
     def _retry_request(self, method: str, path: str) -> Optional[httpx.Response]:
-        delay = HTTPX_BACKOFF_FACTOR
+        delay = cfg.backoff_factor
         last_exc = None
-        for attempt in range(1, HTTPX_MAX_RETRIES + 1):
+        for attempt in range(1, cfg.max_retries + 1):
             try:
                 if method == 'GET':
                     resp = self.client.get(self._url(path))
@@ -40,7 +37,7 @@ class OrderAPIBeeceptorClient(OrderAPIBase):
                 self.logger.warning(f"Attempt {attempt} failed for {path}: {e}. Retrying in {delay:.1f}s...")
                 time.sleep(delay)
                 delay *= 2
-        self.logger.error(f"All {HTTPX_MAX_RETRIES} attempts failed for {path}: {last_exc}")
+        self.logger.error(f"All {cfg.max_retries} attempts failed for {path}: {last_exc}")
         return None
 
     def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:

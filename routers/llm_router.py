@@ -7,19 +7,23 @@ from openai import OpenAI
 from routers.naive_router import NaiveRouter
 from llm.openai_client import OpenAIClient, IntentResult
 from routers import Intent, INTENT_LIST
-from config import (
-    ROUTER_LLM_MODEL,
-    ROUTER_LLM_TEMPERATURE,
-    OPENAI_MAX_RETRIES
-)
+from config.settings import settings
 from prompts import PROMPTS
+
+cfg = settings.openai
+
+# from config import (
+#     ROUTER_LLM_MODEL,
+#     ROUTER_LLM_TEMPERATURE,
+#     OPENAI_MAX_RETRIES
+# )
 
 
 class LLMRouter:
     def __init__(self):
         self.client = OpenAIClient()
-        self.model = ROUTER_LLM_MODEL
-        self.temperature = ROUTER_LLM_TEMPERATURE
+        self.model = cfg.chat_model
+        self.temperature = cfg.temperature
 
     def route(self, text: str) -> IntentResult:
         intent_result = self.client.route(text)

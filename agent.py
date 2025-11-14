@@ -4,19 +4,24 @@ from dataclasses import asdict
 from models import *
 from utils import get_storage_class, get_api_class, get_router_class
 from llm.openai_client import OpenAIClient
-from config import (
-    ORDER_ID_RE,
-    RESOLVER_MIN_CONF,
-    KNOWLEDGE_BASE_STORAGE_NAME,
-    ORDER_API_CLIENT_NAME,
-    ROUTER_NAME
-)
+from config import ORDER_ID_RE
+from config.settings import settings
+
+cfg = settings
+
+# from config import (
+#     ORDER_ID_RE,
+#     RESOLVER_MIN_CONF,
+#     KNOWLEDGE_BASE_STORAGE_NAME,
+#     ORDER_API_CLIENT_NAME,
+#     ROUTER_NAME
+# )
 
 
 # modules
-knowledge_base_cls = get_storage_class(KNOWLEDGE_BASE_STORAGE_NAME)
-order_api_cls = get_api_class(ORDER_API_CLIENT_NAME)
-router_cls = get_router_class(ROUTER_NAME)
+knowledge_base_cls = get_storage_class(cfg.modules.kb_name)
+order_api_cls = get_api_class(cfg.modules.order_api_name)
+router_cls = get_router_class(cfg.modules.router_name)
 
 kb = knowledge_base_cls()
 order_api = order_api_cls()
@@ -138,7 +143,7 @@ class OrchestratorAgent(Agent):
         # Emit a Router tool call for observability
         self.tool_calls.append({
             "tool": "Router",
-            "input": {"mode": ROUTER_NAME, "text": message},
+            "input": {"mode": cfg.modules.router_name, "text": message},
             "result": intent_result.model_dump()
         })
 
@@ -146,7 +151,7 @@ class OrchestratorAgent(Agent):
         low = message.lower()
         if not ORDER_ID_RE.search(message) and any(p in low for p in ["it", "that", "this", "same"]):
             res = OpenAIClient().resolve_order_id(message, self.state)
-            if res.id and res.confidence >= RESOLVER_MIN_CONF:
+            if res.id and res.confidence >= cfg.openai.resolver_min_conf:
                 self.log(msg=f'Resolving order_id from message with resolver"{message}" -> {res.id}',
                          request_id=request_id,
                          session_id=session_id)
@@ -173,7 +178,7 @@ class OrchestratorAgent(Agent):
         resp = agent.handle(request_id, session_id, message)
         # Append our router call to the child response
         resp.tool_calls = [ToolCall(**tc) for tc in (self.tool_calls + [c.model_dump() for c in resp.tool_calls])]
-        resp.handover = f"OrchestratorAgent({ROUTER_NAME}) → {agent.name}"
+        resp.handover = f"OrchestratorAgent({cfg.modules.router_name}) → {agent.name}"
         return resp
 
 
@@ -186,7 +191,7 @@ def resolve_order_id_from_context(state: dict, message: str) -> Optional[str]:
     # 2) Try LLM resolver
     resolver = OpenAIClient()
     res = resolver.resolve_order_id(message, state)
-    if res.id and res.confidence >= RESOLVER_MIN_CONF:
+    if res.id and res.confidence >= cfg.openai.resolver_min_conf:
         return res.id
 
     # 3) Fallback to last_order_id

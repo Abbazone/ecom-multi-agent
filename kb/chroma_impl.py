@@ -8,13 +8,17 @@ import logging
 
 from llm.openai_client import OpenAIClient
 from base import BaseKVStorage
-from config import (
-    USE_OPENAI_EMBEDDINGS,
-    CHROMA_DIR,
-    CHROMA_COLLECTION,
-    KB_TOP_K,
-    KB_MIN_SCORE
-)
+# from config import (
+#     USE_OPENAI_EMBEDDINGS,
+#     CHROMA_DIR,
+#     CHROMA_COLLECTION,
+#     KB_TOP_K,
+#     KB_MIN_SCORE
+# )
+
+from config.settings import settings
+
+cfg = settings.vectordb
 
 
 class ChromaKnowledgeBase(BaseKVStorage):
@@ -25,7 +29,7 @@ class ChromaKnowledgeBase(BaseKVStorage):
             self.qa: List[Dict[str, str]] = json.load(f)
         self.use_vectors = os.getenv("ENABLE_EMBEDDINGS", "false").lower() == "true"
         self.collection = None
-        self.embedder = OpenAIClient() if (self.use_vectors and USE_OPENAI_EMBEDDINGS) else None
+        self.embedder = OpenAIClient() if (self.use_vectors and cfg.use_openai_embeddings) else None
         self.logger = logging.getLogger("app")
 
         if self.use_vectors and self.embedder:
