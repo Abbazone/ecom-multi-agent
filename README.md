@@ -126,7 +126,8 @@ Every response returns:
 * `agent.py` — orchestrator, agents
 * `prompts.py` — LLM prompts
 * `agent.py` — orchestrator, agents
-* `config.py` — input config
+* `config`:
+  * `settings.py` — system settings 
 * `memory`:
   * `redis_impl.py` — redis implementation or in-memory store
 * `kb`:
